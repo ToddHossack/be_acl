@@ -101,16 +101,13 @@ class tx_beacl_userAuthGroup {
 
 	function getPagePermsClause($params, $that)	{
 
+		/** @var \Tx\BeAcl\Cache\PermissionCache $permissionCache */
+		$permissionCache = \TYPO3\CMS\Core\Utility\GeneralUtility::makeInstance('Tx\\BeAcl\\Cache\\PermissionCache');
+		$permissionCache->setBackendUser($that);
 		// Load cache from BE User data
-		$cache = array();
-		if (!empty($GLOBALS['BE_USER'])) {
-		  $cache = $GLOBALS['BE_USER']->getSessionData('be_acl');
-		}
-
-			// Check if we can return something from cache
-		if (is_array($cache[$that->user['uid']])
-			&& $cache[$that->user['uid']][$params['perms']]) {
-			return $cache[$that->user['uid']][$params['perms']];
+		$cachedPermissions = $permissionCache->getPermissionsClause($params['perms']);
+		if (isset($cachedPermissions)) {
+			return $cachedPermissions;
 		}
 
 			// get be_acl config in EM
@@ -147,11 +144,9 @@ class tx_beacl_userAuthGroup {
 			// for safety, put whole where query part into brackets so it won't interfere with other parts of the page
 		$str = ' ( '.$str.' ) ';
 
-			// Store data in cache
-		$cache[$that->user['uid']][$params['perms']] = $str;
-		if (!empty($GLOBALS['BE_USER'])) {
-			$GLOBALS['BE_USER']->setAndSaveSessionData('be_acl', $cache);
-		}
+		// Store data in cache
+		$permissionCache->setPermissionsClause($params['perms'], $str);
+
 		return $str;
 	}
 
