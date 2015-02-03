@@ -92,17 +92,17 @@ function getNewID () {
 
 function isIE8() {
 	if (navigator.appName.indexOf("Explorer") != -1) {
-	    var ua = navigator.userAgent;
-	    var re = new RegExp("MSIE ([0-9]{1,}[\.0-9]{0,})");
-	    var rv = 0;
-	    if (re.exec(ua) != null)
-	      rv = parseFloat( RegExp.$1 );
-	    if ( rv >= 9.0 )
-	    	return false;
-	    return true;
+		var ua = navigator.userAgent;
+		var re = new RegExp("MSIE ([0-9]{1,}[\.0-9]{0,})");
+		var rv = 0;
+		if (re.exec(ua) != null)
+			rv = parseFloat( RegExp.$1 );
+		if ( rv >= 9.0 )
+			return false;
+		return true;
 	}
 	return false;
-}	
+}
 
 /**
  * add ACL
@@ -126,9 +126,9 @@ function addACL () {
 	tableCells[0].align = 'right';
 
 	var bIsIE8 = isIE8();
-	
+
 		if (bIsIE8) {
-  			variousObjects[1] = document.createElement('<select name="data[tx_beacl_acl][' + ACLid + '][type]">');
+			variousObjects[1] = document.createElement('<select name="data[tx_beacl_acl][' + ACLid + '][type]">');
 		} else {
 			variousObjects[1] = document.createElement('select');
 			variousObjects[1].setAttribute("name", 'data[tx_beacl_acl][' + ACLid + '][type]');

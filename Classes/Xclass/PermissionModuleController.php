@@ -437,21 +437,21 @@ class Tx_BeAcl_Xclass_PermissionModuleController extends SC_mod_web_perm_index {
 				</tr>';
 		}
 
-        $code .= '
+		$code .= '
             </table>
             <br />';
-        if ($disableOldPermissionSystem) {
-        	$code .= '<span style="display:none;">';
-        	for ( $i = 1; $i <= 5; ++$i ) {
+		if ($disableOldPermissionSystem) {
+			$code .= '<span style="display:none;">';
+			for ( $i = 1; $i <= 5; ++$i ) {
 				$code .= $this->printCheckBox('perms_user', $i)
-					   . $this->printCheckBox('perms_group', $i)
-					   . $this->printCheckBox('perms_everybody', $i)
-					   ;
+					. $this->printCheckBox('perms_group', $i)
+					. $this->printCheckBox('perms_everybody', $i)
+				;
 			}
-        	$code .= '</span>';
-        }
+			$code .= '</span>';
+		}
 
-        $code .= '
+		$code .= '
 			<span id="insertHiddenFields"></span>
 			<img ' . IconUtility::skinImg('', 'gfx/garbage.gif') . ' alt="' . $GLOBALS['LANG']->getLL('delAcl', 1) . '" / id="templateDeleteImage" style="display:none">
 			<a href="javascript:addACL()"><img  ' . IconUtility::skinImg('', 'gfx/new_el.gif') . ' alt="' . $GLOBALS['LANG']->getLL('addAcl', 1) . '" />' . $GLOBALS['LANG']->getLL('addAcl', 1) . '</a><br />
