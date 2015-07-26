@@ -638,7 +638,12 @@ class ux_SC_mod_web_perm_index extends SC_mod_web_perm_index {
             $BE_USER->writeUC($BE_USER->uc);
 
             // display selector
-            $displayCode = '<select size="' . t3lib_div::intInRange(count($aclObjects), 5, 15) . '" name="tx_beacl_objsel[' . $type . '][]" multiple="multiple">';
+			if (version_compare(TYPO3_branch, '6.0', '<')) {
+				$size = t3lib_div::intInRange(count($aclObjects), 5, 15);
+			} else {
+				$size = t3lib_utility_Math::forceIntegerInRange(count($aclObjects), 5, 15);
+			}
+            $displayCode = '<select size="' . $size . '" name="tx_beacl_objsel[' . $type . '][]" multiple="multiple">';
             foreach ($aclObjects as $singleObjectId) {
                 if ($type == 0) {
                     $tmpnam = $be_user_Array[$singleObjectId]['username'];
