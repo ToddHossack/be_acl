@@ -4,6 +4,7 @@
 
 $extensionPath = t3lib_extMgm::extPath('be_acl');
 return array(
+	'tx_beacl_objsel'   => $extensionPath . 'class.tx_beacl_objsel.php',
 	'tx_beacl_userauthgroup'   => $extensionPath . 'res/class.tx_beacl_userauthgroup.php',
 );
 ?>

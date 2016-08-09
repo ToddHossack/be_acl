@@ -50,7 +50,7 @@
 		<label index="tx_beacl_acl.permissions">Rechte</label>
 		<label index="tx_beacl_acl.recursive">Rekursiv</label>
     </languageKey>
-  </data>  
+  </data>
   <orig_text type="array">
     <languageKey index="default" type="array"></languageKey>
   </orig_text>
