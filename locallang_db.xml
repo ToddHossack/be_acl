@@ -20,7 +20,7 @@
 		<label index="tx_beacl_acl.permissions.I.3">New pages</label>
 		<label index="tx_beacl_acl.permissions.I.4">Edit content</label>
 		<label index="tx_beacl_acl.permissions">Permissions</label>
-		<label index="tx_beacl_acl.recursive">Rekursiv</label>
+		<label index="tx_beacl_acl.recursive">Recursive</label>
     </languageKey>
     <languageKey index="dk" type="array">
 		<label index="tx_beacl_acl">Adgangskontrollister</label>

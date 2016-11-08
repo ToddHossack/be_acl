@@ -1,5 +1,5 @@
 <?php
-
+namespace Tx\BeAcl\Controller;
 /***************************************************************
  *  Copyright notice
  *
@@ -26,6 +26,12 @@
 use TYPO3\CMS\Backend\Utility\BackendUtility;
 use TYPO3\CMS\Backend\Utility\IconUtility;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
+use TYPO3\CMS\Core\Utility\ArrayUtility;
+use TYPO3\CMS\Backend\Tree\View\PageTreeView;
+use TYPO3\CMS\Core\Messaging\FlashMessage;
+use TYPO3\CMS\Extbase\Utility\LocalizationUtility;
+use TYPO3\CMS\Extbase\Mvc\View\ViewInterface;
+use Tx\BeAcl\View\BackendTemplateView;
 
 /**
  * Backend ACL - Replacement for "web->Access"
@@ -35,27 +41,135 @@ use TYPO3\CMS\Core\Utility\GeneralUtility;
  * Bugfixes applied:
  * #25942, #25835, #13019, #13176, #13175 Jan Bartels
  */
-class Tx_BeAcl_Xclass_PermissionModuleController extends SC_mod_web_perm_index {
+class PermissionController extends \TYPO3\CMS\Beuser\Controller\PermissionController {
 
+    protected $defaultViewObjectName = BackendTemplateView::class;
+     
+    protected $aclList = [];
+    
+    protected $currentAction;
+    
 	/*****************************
 	 *
 	 * Listing and Form rendering
 	 *
 	 *****************************/
+    
+    public function dump($var) {
+        echo '<pre>';
+        if(is_array($var)) {
+            print_r($var);
+        } else {
+            var_dump($var);
+        }
+        echo '</pre>';
+    }
+    
+    
+    /**
+     * Initializes view
+     *
+     * @param ViewInterface $view The view to be initialized
+     * @return void
+     */
+    protected function initializeView(ViewInterface $view)
+    {
+        parent::initializeView($view);
+       
+        // Add custom JS for Acl permissions
+        if ($view instanceof BackendTemplateView) {
+            $view->getModuleTemplate()->getPageRenderer()->loadRequireJsModule('TYPO3/CMS/BeAcl/Permissions');
+        }
+    }
+    
+	/**
+     * Index action
+     *
+     * @return void
+     */
+    public function indexAction()
+    {
+        parent::indexAction();
+       // echo '<p style="margin-top: 6em;"></p>';
+        // Get ACL configuration
+		$beAclConfig = unserialize($GLOBALS['TYPO3_CONF_VARS']['EXT']['extConf']['be_acl']);
+        
+        
+        $enableFilterSelector = $beAclConfig['enableFilterSelector'] ? 1 : 0;
+        
+        $this->view->assign('disableOldPermissionSystem', $disableOldPermissionSystem);
+        $this->view->assign('enableFilterSelector', $enableFilterSelector);
+        
+        $GLOBALS['LANG']->includeLLFile('EXT:be_acl/res/locallang_perm.xml');
+        
+        /*
+         *  User ACLs
+         */
+        $userAcls = $this->aclObjects(0,$beAclConfig);
+        // If filter is enabled, filter user ACLs according to selection
+        if($enableFilterSelector) {
+           $usersSelected = array_filter($userAcls,function($var) {
+                return !empty($var['selected']);
+           });
+        } 
+        // No filter enabled, so show all user ACLs
+        else {
+            $usersSelected = $userAcls;
+        }
+        $this->view->assign('userSelectedAcls',$usersSelected);
+        
+        // Options for user filter
+        $this->view->assign('userFilterOptions',[
+            'options' => $userAcls,
+            'title' => $GLOBALS['LANG']->getLL('aclUsers'),
+            'id' => 'userAclFilter'
+        ]);
+        
+        /*
+         *  Group ACLs
+         */
+        $groupAcls = $this->aclObjects(1,$beAclConfig);
+        // If filter is enabled, filter group ACLs according to selection
+        if($enableFilterSelector) {
+            $groupsSelected = array_filter($groupAcls,function($var) {
+                return !empty($var['selected']);
+            });
+        } 
+        // No filter enabled, so show all group ACLs
+        else {
+            $groupsSelected = $groupAcls;
+        }
+        $this->view->assign('groupSelectedAcls',$groupsSelected);
+        
+        // Options for group filter
+        $this->view->assign('groupFilterOptions',[
+            'options' => $groupAcls,
+            'title' => $GLOBALS['LANG']->getLL('aclGroups'),
+            'id' => 'groupAclFilter'
+        ]);
 
+        /*
+         *  ACL Tree
+         */
+        $this->buildACLtree(array_keys($userAcls), array_keys($groupAcls));
+        $this->view->assign('aclList',$this->aclList);
+
+    }
+	
+    
 	/**
 	 * Showing the permissions in a tree ($this->edit = false)
 	 * (Adding content to internal content variable)
-	 *
+	 *a
 	 * @return    void
 	 */
-	public function notEdit() {
-		// Get ACL configuration
-		$beAclConfig = unserialize($GLOBALS['TYPO3_CONF_VARS']['EXT']['extConf']['be_acl']);
-		$disableOldPermissionSystem = 0;
-		if ($beAclConfig['disableOldPermissionSystem']) {
-			$disableOldPermissionSystem = 1;
-		}
+	public function xnotEdit() {
+// Get ACL configuration
+$beAclConfig = unserialize($GLOBALS['TYPO3_CONF_VARS']['EXT']['extConf']['be_acl']);
+$disableOldPermissionSystem = 0;
+if ($beAclConfig['disableOldPermissionSystem']) {
+    $disableOldPermissionSystem = 1;
+}
 		$GLOBALS['LANG']->includeLLFile('EXT:be_acl/res/locallang_perm.xml');
 
 		// Get usernames and groupnames: The arrays we get in return contains only 1) users which are members of the groups of the current user, 2) groups that the current user is member of
@@ -101,14 +215,14 @@ class Tx_BeAcl_Xclass_PermissionModuleController extends SC_mod_web_perm_index {
 		// Create the tree from $this->id:
 		$tree->getTree($this->id, $this->MOD_SETTINGS['depth'], '');
 
-		// Get list of ACL users and groups, and initialize ACLs
-		$aclUsers = $this->acl_objectSelector(0, $displayUserSelector, $beAclConfig);
-		$aclGroups = $this->acl_objectSelector(1, $displayGroupSelector, $beAclConfig);
+// Get list of ACL users and groups, and initialize ACLs
+$aclUsers = $this->acl_objectSelector(0, $displayUserSelector, $beAclConfig);
+$aclGroups = $this->acl_objectSelector(1, $displayGroupSelector, $beAclConfig);
 
-		$this->buildACLtree($aclUsers, $aclGroups);
+$this->buildACLtree($aclUsers, $aclGroups);
 
-		$this->content .= $displayUserSelector;
-		$this->content .= $displayGroupSelector;
+$this->content .= $displayUserSelector;
+$this->content .= $displayGroupSelector;
 
 		// Make header of table:
 		$code = '
@@ -116,29 +230,29 @@ class Tx_BeAcl_Xclass_PermissionModuleController extends SC_mod_web_perm_index {
 				<tr>
 					<th colspan="2">&nbsp;</th>
 					<th>' . $GLOBALS['LANG']->getLL('Owner', TRUE) . '</th>';
-		$tableCells = array();
-		if (!$disableOldPermissionSystem) {
-			$tableCells[] = $GLOBALS['LANG']->getLL('Group', TRUE);
-			$tableCells[] = $GLOBALS['LANG']->getLL('Everybody', TRUE);
-			$tableCells[] = $GLOBALS['LANG']->getLL('EditLock', TRUE);
-		}
-		// ACL headers
-		if (!empty($aclUsers)) {
-			$tableCells[] = '<b>' . $GLOBALS['LANG']->getLL('aclUser') . '</b>';
-			foreach ($aclUsers as $uid) {
-				$tableCells[] = $beUserArray[$uid]['username'];
-			}
-		}
-		if (!empty($aclGroups)) {
-			$tableCells[] = '<b>' . $GLOBALS['LANG']->getLL('aclGroup') . '</b>';
-			foreach ($aclGroups as $uid) {
-				$tableCells[] = $beGroupArray[$uid]['title'];
-			}
-		}
-		$code .= $this->printTableHeader($tableCells);
-		$code .= '
-				</tr>
-			</thead>';
+$tableCells = array();
+if (!$disableOldPermissionSystem) {
+    $tableCells[] = $GLOBALS['LANG']->getLL('Group', TRUE);
+    $tableCells[] = $GLOBALS['LANG']->getLL('Everybody', TRUE);
+    $tableCells[] = $GLOBALS['LANG']->getLL('EditLock', TRUE);
+}
+// ACL headers
+if (!empty($aclUsers)) {
+    $tableCells[] = '<b>' . $GLOBALS['LANG']->getLL('aclUser') . '</b>';
+    foreach ($aclUsers as $uid) {
+        $tableCells[] = $beUserArray[$uid]['username'];
+    }
+}
+if (!empty($aclGroups)) {
+    $tableCells[] = '<b>' . $GLOBALS['LANG']->getLL('aclGroup') . '</b>';
+    foreach ($aclGroups as $uid) {
+        $tableCells[] = $beGroupArray[$uid]['title'];
+    }
+}
+$code .= $this->printTableHeader($tableCells);
+$code .= '
+        </tr>
+    </thead>';
 
 		// Traverse tree:
 		foreach ($tree->tree as $data) {
@@ -188,45 +302,45 @@ class Tx_BeAcl_Xclass_PermissionModuleController extends SC_mod_web_perm_index {
 				$cells[] = '<td' . $bgCol . '></td>';
 			}
 
-			if (!$disableOldPermissionSystem) {
-				$cells[] = '
-				<td' . $bgCol . ' nowrap="nowrap">' . ($pageId ? SC_mod_web_perm_ajax::renderPermissions($data['row']['perms_user'], $pageId, 'user') . ' ' . $userName : '') . '</td>
-				<td' . $bgCol . ' nowrap="nowrap">' . ($pageId ? SC_mod_web_perm_ajax::renderPermissions($data['row']['perms_group'], $pageId, 'group') . ' ' . $groupName : '') . '</td>
-				<td' . $bgCol . ' nowrap="nowrap">' . ($pageId ? ' ' . SC_mod_web_perm_ajax::renderPermissions($data['row']['perms_everybody'], $pageId, 'everybody') : '') . '</td>
-				<td' . $bgCol . ' nowrap="nowrap">' . ($data['row']['editlock'] ? '<span id="el_' . $pageId . '" class="editlock"><a class="editlock" onclick="WebPermissions.toggleEditLock(\'' . $pageId . '\', \'1\');" title="' . $GLOBALS['LANG']->getLL('EditLock_descr', TRUE) . '">' . IconUtility::getSpriteIcon('status-warning-lock') . '</a></span>' : ($pageId === 0 ? '' : '<span id="el_' . $pageId . '" class="editlock"><a class="editlock" onclick="WebPermissions.toggleEditLock(\'' . $pageId . '\', \'0\');" title="Enable the &raquo;Admin-only&laquo; edit lock for this page">[+]</a></span>')) . '</td>
-			';
-			}
+if (!$disableOldPermissionSystem) {
+            $cells[] = '
+            <td' . $bgCol . ' nowrap="nowrap">' . ($pageId ? SC_mod_web_perm_ajax::renderPermissions($data['row']['perms_user'], $pageId, 'user') . ' ' . $userName : '') . '</td>
+            <td' . $bgCol . ' nowrap="nowrap">' . ($pageId ? SC_mod_web_perm_ajax::renderPermissions($data['row']['perms_group'], $pageId, 'group') . ' ' . $groupName : '') . '</td>
+            <td' . $bgCol . ' nowrap="nowrap">' . ($pageId ? ' ' . SC_mod_web_perm_ajax::renderPermissions($data['row']['perms_everybody'], $pageId, 'everybody') : '') . '</td>
+            <td' . $bgCol . ' nowrap="nowrap">' . ($data['row']['editlock'] ? '<span id="el_' . $pageId . '" class="editlock"><a class="editlock" onclick="Permissions.toggleEditLock(\'' . $pageId . '\', \'1\');" title="' . $GLOBALS['LANG']->getLL('EditLock_descr', TRUE) . '">' . IconUtility::getSpriteIcon('status-warning-lock') . '</a></span>' : ($pageId === 0 ? '' : '<span id="el_' . $pageId . '" class="editlock"><a class="editlock" onclick="Permissions.toggleEditLock(\'' . $pageId . '\', \'0\');" title="Enable the &raquo;Admin-only&laquo; edit lock for this page">[+]</a></span>')) . '</td>
+        ';
+}
 
-			// ACL rows
-			if (!empty($aclUsers)) {
-				$cells[] = '<td' . $bgCol . '>' . $this->countAcls($this->aclList[$data['row']['uid']][0]) . '</td>';
-				foreach ($aclUsers as $uid) {
-					$tmpBg = $bgCol;
-					if (isset($this->aclList[$data['row']['uid']][0][$uid]['newAcl'])) {
-						if ($this->aclList[$data['row']['uid']][0][$uid]['recursive']) {
-							$tmpBg = ' class="bgColor5"';
-						} else {
-							$tmpBg = ' class="bgColor6"';
-						}
-					}
+// ACL rows
+if (!empty($aclUsers)) {
+    $cells[] = '<td' . $bgCol . '>' . $this->countAcls($this->aclList[$data['row']['uid']][0]) . '</td>';
+    foreach ($aclUsers as $uid) {
+        $tmpBg = $bgCol;
+        if (isset($this->aclList[$data['row']['uid']][0][$uid]['newAcl'])) {
+            if ($this->aclList[$data['row']['uid']][0][$uid]['recursive']) {
+                $tmpBg = ' class="bgColor5"';
+            } else {
+                $tmpBg = ' class="bgColor6"';
+            }
+        }
 
-					$cells[] = '<td' . $tmpBg . ' nowrap="nowrap">' . ($data['row']['uid'] ? ' ' . $this->printPerms($this->aclList[$data['row']['uid']][0][$uid]['permissions']) : '') . '</td>';
-				}
-			}
-			if (!empty($aclGroups)) {
-				$cells[] = '<td' . $bgCol . '>' . $this->countAcls($this->aclList[$data['row']['uid']][1]) . '</td>';
-				foreach ($aclGroups as $uid) {
-					$tmpBg = $bgCol;
-					if (isset($this->aclList[$data['row']['uid']][1][$uid]['newAcl'])) {
-						if ($this->aclList[$data['row']['uid']][1][$uid]['recursive']) {
-							$tmpBg = ' class="bgColor5"';
-						} else {
-							$tmpBg = ' class="bgColor6"';
-						}
-					}
-					$cells[] = '<td' . $tmpBg . ' nowrap="nowrap">' . ($data['row']['uid'] ? ' ' . $this->printPerms($this->aclList[$data['row']['uid']][1][$uid]['permissions']) : '') . '</td>';
-				}
-			}
+        $cells[] = '<td' . $tmpBg . ' nowrap="nowrap">' . ($data['row']['uid'] ? ' ' . $this->printPerms($this->aclList[$data['row']['uid']][0][$uid]['permissions']) : '') . '</td>';
+    }
+}
+if (!empty($aclGroups)) {
+    $cells[] = '<td' . $bgCol . '>' . $this->countAcls($this->aclList[$data['row']['uid']][1]) . '</td>';
+    foreach ($aclGroups as $uid) {
+        $tmpBg = $bgCol;
+        if (isset($this->aclList[$data['row']['uid']][1][$uid]['newAcl'])) {
+            if ($this->aclList[$data['row']['uid']][1][$uid]['recursive']) {
+                $tmpBg = ' class="bgColor5"';
+            } else {
+                $tmpBg = ' class="bgColor6"';
+            }
+        }
+        $cells[] = '<td' . $tmpBg . ' nowrap="nowrap">' . ($data['row']['uid'] ? ' ' . $this->printPerms($this->aclList[$data['row']['uid']][1][$uid]['permissions']) : '') . '</td>';
+    }
+}
 
 			// Compile table row:
 			$code .= '<tr>' . implode('', $cells) . '</tr>';
@@ -261,13 +375,69 @@ class Tx_BeAcl_Xclass_PermissionModuleController extends SC_mod_web_perm_index {
 		$this->content .= $this->doc->section($GLOBALS['LANG']->getLL('Legend') . ':', $code, TRUE, TRUE);
 	}
 
+    /**
+     * Edit action
+     *
+     * @return void
+     */
+    public function editAction()
+    {
+        parent::editAction();
+        
+		// Get ACL configuration
+        $beAclConfig = unserialize($GLOBALS['TYPO3_CONF_VARS']['EXT']['extConf']['be_acl']);
+       
+        $disableOldPermissionSystem = $beAclConfig['disableOldPermissionSystem'] ? 1 : 0;
+
+        $this->view->assign('disableOldPermissionSystem', $disableOldPermissionSystem);
+        
+		$GLOBALS['LANG']->includeLLFile('EXT:be_acl/res/locallang_perm.xml');
+
+		// ACL CODE
+		$res = $GLOBALS['TYPO3_DB']->exec_SELECTquery('*', 'tx_beacl_acl', 'pid=' . (int) $this->id);
+        
+        $pageAcls = array();
+        
+		while ($result = $GLOBALS['TYPO3_DB']->sql_fetch_assoc($res)) {
+            $pageAcls[] = $result;
+		}
+        
+        $userGroupSelectorOptions = array();
+        foreach(array(1 => 'Group', 0 => 'User') as $type => $label) {
+            $option = new \stdClass();
+            $option->key = $type;
+            $option->value = LocalizationUtility::translate('LLL:EXT:be_acl/res/locallang_perm.xml:acl'.$label,'be_acl');
+            $userGroupSelectorOptions[] = $option;
+        }
+        $this->view->assign('userGroupSelectorOptions',$userGroupSelectorOptions);
+        $this->view->assign('pageAcls', $pageAcls);
+    }
+    
+    /**
+     * Update action
+     *
+     * @param array $data
+     * @param array $mirror
+     * @return void
+     */
+    protected function updateAction(array $data, array $mirror)
+    {
+        // Process data map
+        $tce = GeneralUtility::makeInstance('TYPO3\\CMS\\Core\\DataHandling\\DataHandler');
+        $tce->stripslashes_values = 0;
+        $tce->start($data, array());
+        $tce->process_datamap();
+
+        parent::updateAction($data,$mirror);
+    }
+    
 	/**
 	 * Creating form for editing the permissions    ($this->edit = true)
 	 * (Adding content to internal content variable)
 	 *
 	 * @return    void
 	 */
-	public function doEdit() {
+	public function xdoEdit() {
 		if ($GLOBALS['BE_USER']->workspace != 0) {
 			// Adding section with the permission setting matrix:
 			$flashMessage = \TYPO3\CMS\Core\Utility\GeneralUtility::makeInstance('TYPO3\\CMS\\Core\\Messaging\\FlashMessage', $GLOBALS['LANG']->getLL('WorkspaceWarningText'), $GLOBALS['LANG']->getLL('WorkspaceWarning'), \TYPO3\CMS\Core\Messaging\FlashMessage::WARNING);
@@ -379,31 +549,31 @@ class Tx_BeAcl_Xclass_PermissionModuleController extends SC_mod_web_perm_index {
 			$code .= '
 					<tr>
 						<td><strong>' . $GLOBALS['LANG']->getLL('Owner', TRUE) . '</strong></td>
-						<td>' . $this->printCheckBox('perms_user', 1) . '</td>
-						<td>' . $this->printCheckBox('perms_user', 5) . '</td>
-						<td>' . $this->printCheckBox('perms_user', 2) . '</td>
-						<td>' . $this->printCheckBox('perms_user', 3) . '</td>
-						<td>' . $this->printCheckBox('perms_user', 4) . '</td>
+						<td>' . $this->xprintCheckBox('perms_user', 1) . '</td>
+						<td>' . $this->xprintCheckBox('perms_user', 5) . '</td>
+						<td>' . $this->xprintCheckBox('perms_user', 2) . '</td>
+						<td>' . $this->xprintCheckBox('perms_user', 3) . '</td>
+						<td>' . $this->xprintCheckBox('perms_user', 4) . '</td>
 						<td></td>
 						<td></td>
 					</tr>
 					<tr>
 						<td><strong>' . $GLOBALS['LANG']->getLL('Group', TRUE) . '</strong></td>
-						<td>' . $this->printCheckBox('perms_group', 1) . '</td>
-						<td>' . $this->printCheckBox('perms_group', 5) . '</td>
-						<td>' . $this->printCheckBox('perms_group', 2) . '</td>
-						<td>' . $this->printCheckBox('perms_group', 3) . '</td>
-						<td>' . $this->printCheckBox('perms_group', 4) . '</td>
+						<td>' . $this->xprintCheckBox('perms_group', 1) . '</td>
+						<td>' . $this->xprintCheckBox('perms_group', 5) . '</td>
+						<td>' . $this->xprintCheckBox('perms_group', 2) . '</td>
+						<td>' . $this->xprintCheckBox('perms_group', 3) . '</td>
+						<td>' . $this->xprintCheckBox('perms_group', 4) . '</td>
 						<td></td>
 						<td></td>
 					</tr>
 					<tr>
 						<td><strong>' . $GLOBALS['LANG']->getLL('Everybody', TRUE) . '</strong></td>
-						<td>' . $this->printCheckBox('perms_everybody', 1) . '</td>
-						<td>' . $this->printCheckBox('perms_everybody', 5) . '</td>
-						<td>' . $this->printCheckBox('perms_everybody', 2) . '</td>
-						<td>' . $this->printCheckBox('perms_everybody', 3) . '</td>
-						<td>' . $this->printCheckBox('perms_everybody', 4) . '</td>
+						<td>' . $this->xprintCheckBox('perms_everybody', 1) . '</td>
+						<td>' . $this->xprintCheckBox('perms_everybody', 5) . '</td>
+						<td>' . $this->xprintCheckBox('perms_everybody', 2) . '</td>
+						<td>' . $this->xprintCheckBox('perms_everybody', 3) . '</td>
+						<td>' . $this->xprintCheckBox('perms_everybody', 4) . '</td>
 						<td></td>
 						<td></td>
 					</tr>';
@@ -416,11 +586,11 @@ class Tx_BeAcl_Xclass_PermissionModuleController extends SC_mod_web_perm_index {
 			$code .= '
 				<tr>
 					<td align="right"><select name="' . $acl_prefix . '[type]" onChange="updateUserGroup(' . $result['uid'] . ')"><option value="0" ' . ($result['type'] ? '' : 'selected="selected"') . '>User</option><option value="1" ' . ($result['type'] ? 'selected="selected"' : '') . '>Group</option></select><select name="' . $acl_prefix . '[object_id]"></select></td>
-					<td>' . $this->printCheckBox('perms_acl_' . $result['uid'], 1, 'data[tx_beacl_acl][' . $result['uid'] . '][permissions]') . '</td>
-					<td>' . $this->printCheckBox('perms_acl_' . $result['uid'], 5, 'data[tx_beacl_acl][' . $result['uid'] . '][permissions]') . '</td>
-					<td>' . $this->printCheckBox('perms_acl_' . $result['uid'], 2, 'data[tx_beacl_acl][' . $result['uid'] . '][permissions]') . '</td>
-					<td>' . $this->printCheckBox('perms_acl_' . $result['uid'], 3, 'data[tx_beacl_acl][' . $result['uid'] . '][permissions]') . '</td>
-					<td>' . $this->printCheckBox('perms_acl_' . $result['uid'], 4, 'data[tx_beacl_acl][' . $result['uid'] . '][permissions]') . '
+					<td>' . $this->xprintCheckBox('perms_acl_' . $result['uid'], 1, 'data[tx_beacl_acl][' . $result['uid'] . '][permissions]') . '</td>
+					<td>' . $this->xprintCheckBox('perms_acl_' . $result['uid'], 5, 'data[tx_beacl_acl][' . $result['uid'] . '][permissions]') . '</td>
+					<td>' . $this->xprintCheckBox('perms_acl_' . $result['uid'], 2, 'data[tx_beacl_acl][' . $result['uid'] . '][permissions]') . '</td>
+					<td>' . $this->xprintCheckBox('perms_acl_' . $result['uid'], 3, 'data[tx_beacl_acl][' . $result['uid'] . '][permissions]') . '</td>
+					<td>' . $this->xprintCheckBox('perms_acl_' . $result['uid'], 4, 'data[tx_beacl_acl][' . $result['uid'] . '][permissions]') . '
 						<input type="hidden" name="' . $acl_prefix . '[permissions]" value="' . $result['permissions'] . '" />
 
 						<script type="text/javascript">updateUserGroup(' . $result['uid'] . ', ' . $result['object_id'] . ');
@@ -443,9 +613,9 @@ class Tx_BeAcl_Xclass_PermissionModuleController extends SC_mod_web_perm_index {
 		if ($disableOldPermissionSystem) {
 			$code .= '<span style="display:none;">';
 			for ( $i = 1; $i <= 5; ++$i ) {
-				$code .= $this->printCheckBox('perms_user', $i)
-					. $this->printCheckBox('perms_group', $i)
-					. $this->printCheckBox('perms_everybody', $i)
+				$code .= $this->xprintCheckBox('perms_user', $i)
+					. $this->xprintCheckBox('perms_group', $i)
+					. $this->xprintCheckBox('perms_everybody', $i)
 				;
 			}
 			$code .= '</span>';
@@ -497,7 +667,7 @@ class Tx_BeAcl_Xclass_PermissionModuleController extends SC_mod_web_perm_index {
 	 * @param    array        BE group array
 	 * @return    string        HTML: title attribute
 	 */
-	function generateTitleAttribute($uid, $be_user_Array, $be_group_Array) {
+	function xgenerateTitleAttribute($uid, $be_user_Array, $be_group_Array) {
 
 		$composedStr = '';
 		$this->aclList[$uid];
@@ -522,6 +692,107 @@ class Tx_BeAcl_Xclass_PermissionModuleController extends SC_mod_web_perm_index {
 		return ' title="' . $composedStr . '"' . ($composedStr ? ' class="bgColor5"' : '');
 	}
 
+    /*
+    protected function getBeUsers() {
+        if(is_null($this->beUsers)) {
+            $beGroupKeys = is_object($GLOBALS['BE_USER']) ? $GLOBALS['BE_USER']->userGroupsUID : [];
+            $exclude = (int) ($this->getCurrentAction() == 'edit');
+            $this->beUsers = BackendUtility::getUserNames();
+            if(!$GLOBALS['BE_USER']->isAdmin()) {
+                $this->beUsers = BackendUtility::blindUserNames($this->beUsers, $beGroupKeys, $exclude);
+            }
+        }
+        return $this->beUsers;
+    }
+    
+    protected function getBeGroups() {
+        if(is_null($this->beGroups)) {
+            $beGroupKeys = is_object($GLOBALS['BE_USER']) ? $GLOBALS['BE_USER']->userGroupsUID : [];
+            $exclude = (int) ($this->getCurrentAction() == 'edit');
+            $this->beGroups = BackendUtility::getGroupNames();
+            if(!$GLOBALS['BE_USER']->isAdmin()) {
+                $this->beGroups = BackendUtility::blindGroupNames($this->beGroups, $beGroupKeys, $exclude);
+            }
+        }
+        return $this->beGroups;
+    }
+    */
+    protected function aclObjectQuery($type) {
+        $res = NULL;
+       // $GLOBALS['TYPO3_DB']->store_lastBuiltQuery = 1;
+        $res = $GLOBALS['TYPO3_DB']->exec_SELECTquery(
+            'uid, pid, object_id, type, recursive',
+            'tx_beacl_acl',
+            "tx_beacl_acl.type=$type"
+        );
+       // echo $GLOBALS['TYPO3_DB']->debug_lastBuiltQuery;
+        return $res;
+    }
+    
+    protected function getCurrentAction() {
+        if(is_null($this->currentAction)) {
+            $this->currentAction = $this->request->getControllerActionName();
+        }
+        return $this->currentAction;
+    }
+    
+    
+    /**
+     * 
+     * @global array $BE_USER
+     * @param int $type
+     * @param array $conf
+     * @return array
+     */
+    protected function aclObjects($type, $conf) {
+		global $BE_USER;
+        $aclObjects = [];
+        $currentSelection = [];
+
+        // Run query
+        $res = $this->aclObjectQuery($type);
+        
+        // Process results
+		while ($result = $GLOBALS['TYPO3_DB']->sql_fetch_assoc($res)) {
+			$aclObjects[$result['object_id']] = $result;
+		}
+        // Check results
+        if(empty($aclObjects)) {
+            return $aclObjects;
+        }
+
+        // If filter selector is enabled, then determine currently selected items
+        if ($conf['enableFilterSelector']) {
+            // get current selection from UC, merge data, write it back to UC
+            $currentSelection = is_array($BE_USER->uc['moduleData']['txbeacl_aclSelector'][$type]) ? $BE_USER->uc['moduleData']['txbeacl_aclSelector'][$type] : array();
+
+            $currentSelectionOverride_raw = GeneralUtility::_GP('tx_beacl_objsel');
+            $currentSelectionOverride = array();
+            if (is_array($currentSelectionOverride_raw[$type])) {
+                foreach ($currentSelectionOverride_raw[$type] as $tmp) {
+                    $currentSelectionOverride[$tmp] = $tmp;
+                }
+            }
+            if ($currentSelectionOverride) {
+                $currentSelection = $currentSelectionOverride;
+            }
+
+            $BE_USER->uc['moduleData']['txbeacl_aclSelector'][$type] = $currentSelection;
+            $BE_USER->writeUC($BE_USER->uc);
+        }
+
+        //var_dump($aclObjects);
+        //$rootLineIds = array_column(BackendUtility::BEgetRootLine($this->id),'uid');
+       
+        // create option data
+        foreach ($aclObjects as $k => &$v) {
+            $v['selected'] = (in_array($k, $currentSelection)) ? 1 : 0;
+          //  $v['recursiveAclPid'] = (in_array($rootLineIds) && $v['recursive']) ? $v['pid'] : NULL;
+        }
+		
+		return $aclObjects;
+	}
+
 	/**
 	 * outputs a selector for users / groups, returns current ACLs
 	 *
@@ -530,7 +801,7 @@ class Tx_BeAcl_Xclass_PermissionModuleController extends SC_mod_web_perm_index {
 	 * @param    array        configuration of ACLs
 	 * @return    array        list of groups/users where the ACLs will be shown
 	 */
-	function acl_objectSelector($type, &$displayPointer, $conf) {
+	function xacl_objectSelector($type, &$displayPointer, $conf) {
 		global $BE_USER;
 		$aclObjects = array();
 		$res = $GLOBALS['TYPO3_DB']->exec_SELECTquery(
@@ -610,59 +881,113 @@ class Tx_BeAcl_Xclass_PermissionModuleController extends SC_mod_web_perm_index {
 		return NULL;
 	}
 
-
 	/**
-	 * returns a datastructure: pageid - userId / groupId - permissions
+	 * Creates an ACL tree which correlates with tree for current page
+     * Datastructure: pageid - userId / groupId - permissions
+     * eg. $this->aclList[pageId][type][object_id] = [
+     *      'permissions' => 31
+     *      'recursive' => 1,
+     *      'pid' => 10
+     * ];
 	 *
-	 * @param    array        user ID list
-	 * @param    array        group ID list
+	 * @param array $users - user ID list
+	 * @param array $groups - group ID list
 	 */
-	function buildACLtree($users, $groups) {
+	protected function buildACLtree($users, $groups) {
+        $startPerms = [
+            0 => [],
+            1 => []
+        ];
 
 		// get permissions in the starting point for users and groups
 		$rootLine = BackendUtility::BEgetRootLine($this->id);
+		$currentPage = array_shift($rootLine); // needed as a starting point
 
-		$userStartPermissions = array();
-		$groupStartPermissions = array();
-
-		array_shift($rootLine); // needed as a starting point
-
+        // Iterate rootline, looking for recursive ACLs that may apply to the current page
 		foreach ($rootLine as $level => $values) {
 			$recursive = ' AND recursive=1';
 
-			$res = $GLOBALS['TYPO3_DB']->exec_SELECTquery('type, object_id, permissions', 'tx_beacl_acl', 'pid=' . intval($values['uid']) . $recursive);
-
+			$res = $GLOBALS['TYPO3_DB']->exec_SELECTquery('uid,pid, type, object_id, permissions, recursive', 'tx_beacl_acl', 'pid=' . intval($values['uid']) . $recursive);
+            
 			while ($result = $GLOBALS['TYPO3_DB']->sql_fetch_assoc($res)) {
+                // User type ACLs
 				if ($result['type'] == 0
 					&& in_array($result['object_id'], $users)
-					&& !array_key_exists($result['object_id'], $userStartPermissions)
+                    && !array_key_exists($result['object_id'], $startPerms[0])
 				) {
-					$userStartPermissions[$result['object_id']] = $result['permissions'];
-				} elseif ($result['type'] == 1
+                    $startPerms[0][$result['object_id']] = [
+                        'uid' => $result['uid'],
+                        'permissions' => $result['permissions'],
+                        'recursive' => $result['recursive'],
+                        'pid' => $result['pid']
+                    ];
+				} 
+                // Group type ACLs
+                elseif ($result['type'] == 1
 					&& in_array($result['object_id'], $groups)
-					&& !array_key_exists($result['object_id'], $groupStartPermissions)
+                    && !array_key_exists($result['object_id'], $startPerms[1])
 				) {
-					$groupStartPermissions[$result['object_id']] = $result['permissions'];
+					$startPerms[1][$result['object_id']] = [
+                        'uid' => $result['uid'],
+                        'permissions' => $result['permissions'],
+                        'recursive' => $result['recursive'],
+                        'pid' => $result['pid']
+                    ];
 				}
 			}
 		}
-		foreach ($userStartPermissions as $oid => $perm) {
-			$startPerms[0][$oid]['permissions'] = $perm;
-			$startPerms[0][$oid]['recursive'] = 1;
-		}
-		foreach ($groupStartPermissions as $oid => $perm) {
-			$startPerms[1][$oid]['permissions'] = $perm;
-			$startPerms[1][$oid]['recursive'] = 1;
-		}
-
-
-		$this->traversePageTree_acl($startPerms, $rootLine[0]['uid']);
-
-		// check if there are any ACLs on these pages
-		// build a recursive function traversing through the pagetree
+       
+		$this->traversePageTree_acl($startPerms, $currentPage['uid']);
 	}
 
-	function countAcls($pageData) {
+    /**
+     * Finds ACL permissions for specified page and its children recursively, given
+     * the parent ACLs.
+     * @param array $parentACLs
+     * @param int $uid
+     */
+	protected function traversePageTree_acl($parentACLs, $uid) {
+        // Fetch ACLs aasigned to given page
+		$res = $GLOBALS['TYPO3_DB']->exec_SELECTquery('uid,pid, type, object_id, permissions, recursive', 'tx_beacl_acl', 'pid=' . intval($uid));
+		$hasNoRecursive = array();
+		$this->aclList[$uid] = $parentACLs;
+        
+		while ($result = $GLOBALS['TYPO3_DB']->sql_fetch_assoc($res)) {
+			$permissions = array(
+                'uid' => $result['uid'],
+				'permissions' => $result['permissions'],
+				'recursive' => $result['recursive'],
+                'pid' => $result['pid']
+			);
+            
+            // Non-recursive ACL
+			if ($result['recursive'] == 0) {
+				$this->aclList[$uid][$result['type']][$result['object_id']] = $permissions;
+				$hasNoRecursive[$uid][$result['type']][$result['object_id']] = $permissions;
+			}
+            
+            // Recursive ACL
+            else {
+                // Add to parent ACLs for sub-pages
+				$parentACLs[$result['type']][$result['object_id']] = $permissions;
+                // If there also is a non-recursive ACL for this object_id, that takes precedence
+                // for this page. Otherwise, add it to the ACL list.
+				if (is_array($hasNoRecursive[$uid][$result['type']][$result['object_id']])) {
+					$this->aclList[$uid][$result['type']][$result['object_id']] = $hasNoRecursive[$uid][$result['type']][$result['object_id']];
+				} else {
+					$this->aclList[$uid][$result['type']][$result['object_id']] = $permissions;
+				}
+			}
+		}
+
+        // Find child pages and their ACL permissions
+		$res = $GLOBALS['TYPO3_DB']->exec_SELECTquery('uid', 'pages', 'pid=' . intval($uid) . ' AND deleted=0');
+		while ($result = $GLOBALS['TYPO3_DB']->sql_fetch_assoc($res)) {
+			$this->traversePageTree_acl($parentACLs, $result['uid']);
+		}
+	}
+
+    protected function xcountAcls($pageData) {
 		$i = 0;
 		if (!$pageData) {
 			return '';
@@ -675,60 +1000,7 @@ class Tx_BeAcl_Xclass_PermissionModuleController extends SC_mod_web_perm_index {
 
 		return ($i ? $i : '');
 	}
-
-	/**
-	 * build ACL tree
-	 */
-	function traversePageTree_acl($parentACLs, $uid) {
-		$res = $GLOBALS['TYPO3_DB']->exec_SELECTquery('type, object_id, permissions, recursive', 'tx_beacl_acl', 'pid=' . intval($uid));
-
-		$hasNoRecursive = array();
-		$this->aclList[$uid] = $parentACLs;
-		while ($result = $GLOBALS['TYPO3_DB']->sql_fetch_assoc($res)) {
-			$permissions = array(
-				'permissions' => $result['permissions'],
-				'recursive' => $result['recursive'],
-			);
-			if ($result['recursive'] == 0) {
-				if ($this->aclList[$uid][$result['type']][$result['object_id']]['newAcl']) {
-					$permissions['newAcl'] = $this->aclList[$uid][$result['type']][$result['object_id']]['newAcl'];
-				}
-				$this->aclList[$uid][$result['type']][$result['object_id']] = $permissions;
-				$permissions['newAcl'] = 1;
-				$hasNoRecursive[$uid][$result['type']][$result['object_id']] = $permissions;
-			} else {
-				$parentACLs[$result['type']][$result['object_id']] = $permissions;
-				if (is_array($hasNoRecursive[$uid][$result['type']][$result['object_id']])) {
-					$this->aclList[$uid][$result['type']][$result['object_id']] = $hasNoRecursive[$uid][$result['type']][$result['object_id']];
-				} else {
-					$this->aclList[$uid][$result['type']][$result['object_id']] = $permissions;
-				}
-			}
-			$this->aclList[$uid][$result['type']][$result['object_id']]['newAcl'] += 1;
-		}
-
-		$res = $GLOBALS['TYPO3_DB']->exec_SELECTquery('uid', 'pages', 'pid=' . intval($uid) . ' AND deleted=0');
-		while ($result = $GLOBALS['TYPO3_DB']->sql_fetch_assoc($res)) {
-			$this->traversePageTree_acl($parentACLs, $result['uid']);
-		}
-	}
-
-	/**
-	 * prints table header
-	 *
-	 * @param    array        array of cells
-	 * @return    string        HTML output for the cells
-	 */
-	function printTableHeader($cells) {
-		$wrappedCells = '';
-		foreach ($cells as $singleCell) {
-			$wrappedCells .= '<th align="center">' . $singleCell . '</th>';
-		}
-
-		return $wrappedCells;
-
-	}
-
+    
 	/**
 	 * Print a checkbox for the edit-permission form
 	 *
@@ -737,7 +1009,7 @@ class Tx_BeAcl_Xclass_PermissionModuleController extends SC_mod_web_perm_index {
 	 * @param string        Result sting, not mandatory
 	 * @return    string        HTML checkbox
 	 */
-	function printCheckBox($checkName, $num, $result = '') {
+	function xprintCheckBox($checkName, $num, $result = '') {
 		if (empty($result)) {
 			$result = 'data[pages][' . $GLOBALS['SOBE']->id . '][' . $checkName . ']';
 		}
@@ -753,7 +1025,7 @@ class Tx_BeAcl_Xclass_PermissionModuleController extends SC_mod_web_perm_index {
 	 * @param    integer        Permission integer (bits)
 	 * @return    string        HTML marked up x/* indications.
 	 */
-	function printPerms($int) {
+	function xprintPerms($int) {
 		global $LANG;
 		$permissions = array(
 			1,
@@ -782,6 +1054,58 @@ class Tx_BeAcl_Xclass_PermissionModuleController extends SC_mod_web_perm_index {
 		return $str;
 	}
 
+    
+    /**
+	 * Finding tree and offer setting of values recursively.
+	 *
+	 * @param integer $id Page id.
+	 * @param string $perms_clause Select clause
+	 * @return string Select form element for recursive levels (if any levels are found)
+	 */
+	public function xgetRecursiveSelect($id, $perms_clause) {
+		// Initialize tree object:
+		$tree = GeneralUtility::makeInstance('TYPO3\\CMS\\Backend\\Tree\\View\\PageTreeView');
+		$tree->init('AND ' . $perms_clause);
+		$tree->addField('perms_userid', 1);
+		$tree->makeHTML = 0;
+		$tree->setRecs = 1;
+		// Make tree:
+		$tree->getTree($id, $this->getLevels, '');
+		// If there are a hierarchy of page ids, then...
+		if ($GLOBALS['BE_USER']->user['uid'] && count($tree->orig_ids_hierarchy)) {
+			// Init:
+			$label_recur = $GLOBALS['LANG']->getLL('recursive');
+			$label_levels = $GLOBALS['LANG']->getLL('levels');
+			$label_pA = $GLOBALS['LANG']->getLL('pages_affected');
+			$theIdListArr = array();
+			$opts = '
+						<option value=""></option>';
+			// Traverse the number of levels we want to allow recursive setting of permissions for:
+			for ($a = $this->getLevels; $a > 0; $a--) {
+				if (is_array($tree->orig_ids_hierarchy[$a])) {
+					foreach ($tree->orig_ids_hierarchy[$a] as $theId) {
+						if ($GLOBALS['BE_USER']->isAdmin() || $GLOBALS['BE_USER']->user['uid'] == $tree->recs[$theId]['perms_userid']) {
+							$theIdListArr[] = $theId;
+						}
+					}
+					$lKey = $this->getLevels - $a + 1;
+					$opts .= '
+						<option value="' . htmlspecialchars(implode(',', $theIdListArr)) . '">' . htmlspecialchars($label_recur . ' ' . $lKey . ' ' . $label_levels, ENT_COMPAT, 'UTF-8', FALSE) . ' (' . count($theIdListArr) . ' ' . $label_pA . ')' . '</option>';
+				}
+			}
+			// Put the selector box together:
+			$theRecursiveSelect = '<br />
+					<select name="mirror[pages][' . $id . ']">
+						' . $opts . '
+					</select>
+				<br /><br />';
+		} else {
+			$theRecursiveSelect = '';
+		}
+		// Return selector box element:
+		return $theRecursiveSelect;
+	}
+    
 }
 
 ?>

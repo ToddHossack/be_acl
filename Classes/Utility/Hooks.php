@@ -1,5 +1,5 @@
 <?php
-
+namespace Tx\BeAcl\Utility;
 /***************************************************************
  *  Copyright notice
  *
@@ -27,7 +27,7 @@
  * This class contains hooks that are called by the TYPO3 DataHandler
  * when a record is modified (processDatamap / processCmdmap).
  */
-class tx_beacl_hooks {
+class Hooks {
 
 	/**
 	 * This hook is called when a record is added or edited.
@@ -41,7 +41,7 @@ class tx_beacl_hooks {
 	 * @param \TYPO3\CMS\Core\DataHandling\DataHandler $tceMain TCEmain parent object.
 	 * @return void
 	 */
-	function processDatamap_afterDatabaseOperations($status, $table, $recordId, $updatedFields, $tceMain) {
+	public function processDatamap_afterDatabaseOperations($status, $table, $recordId, $updatedFields, $tceMain) {
 
 		// When a new page is created we update the permission timestamp
 		// in the cache so that all Backend users recalculate their

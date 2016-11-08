@@ -7,15 +7,16 @@ if (!defined('TYPO3_MODE')) {
 	options.saveDocNew.tx_beacl_acl=1
 ');
 
-$TYPO3_CONF_VARS['SC_OPTIONS']['t3lib/class.t3lib_userauthgroup.php']['calcPerms'][] = 'tx_beacl_userAuthGroup->calcPerms';
-$TYPO3_CONF_VARS['SC_OPTIONS']['t3lib/class.t3lib_userauthgroup.php']['getPagePermsClause'][] = 'tx_beacl_userAuthGroup->getPagePermsClause';
 
-$GLOBALS['TYPO3_CONF_VARS']['SYS']['Objects']['TYPO3\\CMS\\Perm\\Controller\\PermissionModuleController'] = array(
-	'className' => 'Tx_BeAcl_Xclass_PermissionModuleController',
+$TYPO3_CONF_VARS['SC_OPTIONS']['t3lib/class.t3lib_userauthgroup.php']['calcPerms'][] = 'Tx\\BeAcl\\Utility\\UserAuthGroup->calcPerms';
+$TYPO3_CONF_VARS['SC_OPTIONS']['t3lib/class.t3lib_userauthgroup.php']['getPagePermsClause'][] = 'Tx\\BeAcl\\Utility\\UserAuthGroup->getPagePermsClause';
+
+$GLOBALS['TYPO3_CONF_VARS']['SYS']['Objects']['TYPO3\\CMS\\Beuser\\Controller\\PermissionController'] = array(
+	'className' => 'Tx\\BeAcl\\Controller\\PermissionController',
 );
 
-$GLOBALS['TYPO3_CONF_VARS']['SC_OPTIONS']['t3lib/class.t3lib_tcemain.php']['processDatamapClass'][] = 'EXT:be_acl/class.tx_beacl_hooks.php:tx_beacl_hooks';
-$GLOBALS['TYPO3_CONF_VARS']['SC_OPTIONS']['t3lib/class.t3lib_tcemain.php']['processCmdmapClass'][] = 'EXT:be_acl/class.tx_beacl_hooks.php:tx_beacl_hooks';
+$GLOBALS['TYPO3_CONF_VARS']['SC_OPTIONS']['t3lib/class.t3lib_tcemain.php']['processDatamapClass'][] = 'Tx\\BeAcl\\Utility\\Hooks';
+$GLOBALS['TYPO3_CONF_VARS']['SC_OPTIONS']['t3lib/class.t3lib_tcemain.php']['processCmdmapClass'][] = 'Tx\\BeAcl\\Utility\\Hooks';
 
 $GLOBALS['TYPO3_CONF_VARS']['SYS']['caching']['cacheConfigurations']['tx_be_acl_timestamp'] = array(
 	'frontend' => 'TYPO3\\CMS\\Core\\Cache\\Frontend\\StringFrontend',
@@ -31,3 +32,13 @@ if (extension_loaded('redis')) {
 	$GLOBALS['TYPO3_CONF_VARS']['SYS']['caching']['cacheConfigurations']['tx_be_acl_timestamp']['backend'] = 'TYPO3\\CMS\\Core\\Cache\\Backend\\RedisBackend';
 	$GLOBALS['TYPO3_CONF_VARS']['SYS']['caching']['cacheConfigurations']['tx_be_acl_permissions']['backend'] = 'TYPO3\\CMS\\Core\\Cache\\Backend\\RedisBackend';
 }
+
+
+$iconRegistry = \TYPO3\CMS\Core\Utility\GeneralUtility::makeInstance(\TYPO3\CMS\Core\Imaging\IconRegistry::class);
+$iconRegistry->registerIcon(
+    'tx_beacl-object-info',
+    \TYPO3\CMS\Core\Imaging\IconProvider\FontawesomeIconProvider::class,
+    [
+        'name'     => 'info'
+    ]
+);

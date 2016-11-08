@@ -1,4 +1,5 @@
 <?php
+namespace Tx\BeAcl\Utility;
 /***************************************************************
  *  Copyright notice
  *
@@ -27,7 +28,7 @@ use TYPO3\CMS\Backend\Utility\BackendUtility;
 /**
  * Class for building the item array for the Backend forms.
  */
-class tx_beacl_objsel {
+class ObjectSelection {
 
 	/**
 	 * Populates the "object_id" field of a "tx_beacl_acl" record depending on
@@ -54,12 +55,12 @@ class tx_beacl_objsel {
 				1 => '',
 			),
 		);
-
+        $type = isset($PA['row']['type'][0]) ? $PA['row']['type'][0] : NULL;
 		// Get users or groups - The function copies functionality of the method acl_objectSelector()
 		// of ux_SC_mod_web_perm_index class as for non-admins it returns only:
 		// 1) Users which are members of the groups of the current user.
 		// 2) Groups that the current user is a member of.
-		switch ($PA['row']['type']) {
+		switch ($type) {
 
 			// In case users shall be returned
 			case '0':

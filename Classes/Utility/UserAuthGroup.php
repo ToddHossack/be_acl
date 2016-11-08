@@ -1,4 +1,5 @@
 <?php
+namespace Tx\BeAcl\Utility;
 /***************************************************************
  *  Copyright notice
  *
@@ -30,7 +31,7 @@ use TYPO3\CMS\Core\Utility\GeneralUtility;
  *
  * @author  Sebastian Kurfuerst <sebastian@typo3.org>
  */
-class tx_beacl_userAuthGroup {
+class UserAuthGroup {
 
 	/**
 	 * @var array
