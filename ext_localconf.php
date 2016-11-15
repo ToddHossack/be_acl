@@ -15,8 +15,10 @@ $GLOBALS['TYPO3_CONF_VARS']['SYS']['Objects']['TYPO3\\CMS\\Beuser\\Controller\\P
 	'className' => 'Tx\\BeAcl\\Controller\\PermissionController',
 );
 
-$GLOBALS['TYPO3_CONF_VARS']['SC_OPTIONS']['t3lib/class.t3lib_tcemain.php']['processDatamapClass'][] = 'Tx\\BeAcl\\Utility\\Hooks';
-$GLOBALS['TYPO3_CONF_VARS']['SC_OPTIONS']['t3lib/class.t3lib_tcemain.php']['processCmdmapClass'][] = 'Tx\\BeAcl\\Utility\\Hooks';
+$GLOBALS['TYPO3_CONF_VARS']['SC_OPTIONS']['t3lib/class.t3lib_tcemain.php']['processDatamapClass'][] = 'Tx\\BeAcl\\Hook\\DataHandlerHook';
+$GLOBALS['TYPO3_CONF_VARS']['SC_OPTIONS']['t3lib/class.t3lib_tcemain.php']['processCmdmapClass'][] = 'Tx\\BeAcl\\Hook\\DataHandlerHook';
+
+
 
 $GLOBALS['TYPO3_CONF_VARS']['SYS']['caching']['cacheConfigurations']['tx_be_acl_timestamp'] = array(
 	'frontend' => 'TYPO3\\CMS\\Core\\Cache\\Frontend\\StringFrontend',

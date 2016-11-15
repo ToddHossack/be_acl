@@ -2,6 +2,7 @@
 
 <div class="form-group">
 <label for="{filter.id}">{filter.title}</label>
+
 <select class="form-control" id="{filter.id}" size="5" name="tx_beacl_objsel[1][]" multiple="multiple">
 	<f:for each="{filter.options}" as="option" key="oid">
 		<f:if condition="{option.selected}==1">

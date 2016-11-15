@@ -12,12 +12,10 @@
  */
 
 /**
- * Module: Tx/BeAcl/Permissions
+ * Module: Tx/BeAcl/AclPermissions
  * Javascript functions regarding the permissions acl module
  */
 define(['jquery','TYPO3/CMS/Beuser/Permissions','TYPO3/CMS/Backend/Notification'], function($,Permissions,Notification) {
-
-	console.log('$$$$$$$$$ Custom Permissions.js');	
 
 	var ajaxUrl = TYPO3.settings.ajaxUrls['user_access_permissions'];
 	
@@ -27,12 +25,9 @@ define(['jquery','TYPO3/CMS/Beuser/Permissions','TYPO3/CMS/Backend/Notification'
 		}
 	};
 	
-	
 	var newACLs = new Array();
 	var currentACLs = new Array();
 	var editAclRowTpl;
-	
-	
 	
 	AclPermissions.getEditAclRowTpl = function() {
 		if(!editAclRowTpl) {
@@ -77,27 +72,6 @@ define(['jquery','TYPO3/CMS/Beuser/Permissions','TYPO3/CMS/Backend/Notification'
 		$('#typo3-permissionMatrix tbody').append(tableRow);
 	};
 	
-	/**
-	* deletes an ACL
-	*
-	* @param ID of ACL
-	*/
-   AclPermissions.xdeleteACL = function(id) {
-		var $container = $(AclPermissions.options.containerSelector);
-		var $tableRow = $('#typo3-permissionMatrix tbody').find('tr[data-acluid="'+ id +'"]');
-		// New ACL - remove ACL from table
-		if(isNaN(id)) {
-			
-		} 
-		// Existing ACL - delete by filling the cmdMap
-		else {
-			if($tableRow.length) $tableRow.find('select,input').attr('disabled','disabled');
-			$('#insertHiddenFields').append('<input type="hidden" name="tx_beuser_system_beusertxpermission[cmd][tx_beacl_acl][' + id + '][delete]" value="1" />')
-			// Submit form
-			//document.editform.submit();
-	   }
-   }
-
 	AclPermissions.removeACL = function(id) {
 		var $tableRow = $('#typo3-permissionMatrix tbody').find('tr[data-acluid="'+ id +'"]');
 		if($tableRow.length) $tableRow.remove();
@@ -126,15 +100,17 @@ define(['jquery','TYPO3/CMS/Beuser/Permissions','TYPO3/CMS/Backend/Notification'
 			data: {
 				'action': 'delete_acl',
 				'page': pageID,
-				'acl': id,
-				'XDEBUG_SESSION_START': 'netbeans-xdebug'
+				'acl': id
 			}
-		}).done(function() {
+		}).done(function(data) {
 			// Remove from table
 			AclPermissions.removeACL(id);
-			console.log('deleteAcl - done',arguments);
+			// Show notification
+			var title = data.title || 'Success';
+			var msg = data.message || 'ACL deleted';
+			Notification.success(title,msg,5);
 		}).fail(function(jqXHR, textStatus, error) {
-			Notification.error('Delete failed',error);
+			Notification.error(null,error);
 		});
 	};
 	
@@ -173,26 +149,19 @@ define(['jquery','TYPO3/CMS/Beuser/Permissions','TYPO3/CMS/Backend/Notification'
 	 * so AJAX reloads are no problem
 	 */
 	AclPermissions.initializeEvents = function() {
-		console.log('initializeEvents');
 		// Select user or group
 		$(AclPermissions.options.containerSelector)
 			.on('change', '.tx_beacl-edit-type-selector', function(evt) {
 				evt.preventDefault();
-				console.log('change .tx_beacl-edit-type-selector');
-				console.log(evt);
 				var $el = $(evt.target);
-				console.log($el);
-				console.log($el.val());
 				AclPermissions.updateUserGroup($el.data('acluid'),$el.val(),0);
 			})
 			.on('click', '.tx_beacl-addacl', function(evt) {
 				evt.preventDefault();
-				console.log('click .tx_beacl-addacl');
 				AclPermissions.addACL();
 			})
 			.on('click', '.tx_beacl-edit-delete', function(evt) {
 				evt.preventDefault();
-				console.log('click .tx_beacl-edit-delete');
 				AclPermissions.deleteACL($(this));
 			})
 			.find('.tx_beacl-edit-acl-row').each(function() {

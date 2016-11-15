@@ -1,5 +1,5 @@
 <?php
-namespace Tx\BeAcl\Utility;
+namespace Tx\BeAcl\Hook;
 /***************************************************************
  *  Copyright notice
  *
@@ -27,7 +27,7 @@ namespace Tx\BeAcl\Utility;
  * This class contains hooks that are called by the TYPO3 DataHandler
  * when a record is modified (processDatamap / processCmdmap).
  */
-class Hooks {
+class DataHandlerHook {
 
 	/**
 	 * This hook is called when a record is added or edited.
@@ -84,4 +84,6 @@ class Hooks {
 		$permissionCache = \TYPO3\CMS\Core\Utility\GeneralUtility::makeInstance('Tx\\BeAcl\\Cache\\PermissionCache');
 		$permissionCache->flushCache();
 	}
+    
+
 }

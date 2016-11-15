@@ -23,6 +23,7 @@ use TYPO3\CMS\Core\Imaging\IconFactory;
 use TYPO3\CMS\Core\Utility\ExtensionManagementUtility;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
 use TYPO3\CMS\Fluid\View\StandaloneView;
+use TYPO3\CMS\Core\Utility\MathUtility;
 
 /**
  * This class extends the permissions module in the TYPO3 Backend to provide
@@ -102,11 +103,14 @@ class PermissionAjaxController extends \TYPO3\CMS\Beuser\Controller\PermissionAj
     }
     
     protected function deleteAcl(ServerRequestInterface $request, ResponseInterface $response) {
+        $GLOBALS['LANG']->includeLLFile('EXT:be_acl/res/locallang_perm.xml');
+        $GLOBALS['LANG']->getLL('aclUsers');
+        
         $postData = $request->getParsedBody();
         $aclUid = !empty($postData['acl']) ? $postData['acl'] : NULL;
         
-        if(!is_numeric($aclUid)) {
-            return $this->errorResponse($response,'No ACL ID provided',400);
+        if(!MathUtility::canBeInterpretedAsInteger($aclUid)) {
+            return $this->errorResponse($response,$GLOBALS['LANG']->getLL('noAclId'),400);
         }
         $aclUid = (int) $aclUid;
         // Prepare command map
@@ -115,22 +119,53 @@ class PermissionAjaxController extends \TYPO3\CMS\Beuser\Controller\PermissionAj
                     $aclUid => ['delete' => 1]
                 ]
         ];
-        // Process command map
-        $tce = GeneralUtility::makeInstance('TYPO3\\CMS\\Core\\DataHandling\\DataHandler');
-        $tce->stripslashes_values = 0;
-        $tce->start(array(), $cmdMap);
-        $tce->process_cmdmap();
         
+        try {
+            // Process command map
+            $tce = GeneralUtility::makeInstance(DataHandler::class);
+            $tce->stripslashes_values = 0;
+            $tce->start(array(), $cmdMap);
+            $this->checkModifyAccess($this->table,$aclUid,$tce);
+            $tce->process_cmdmap();
+        } catch (\Exception $ex) {
+            return $this->errorResponse($response,$ex->getMessage(),403);
+        }
+        
+        $body = [
+          'title' => $GLOBALS['LANG']->getLL('aclSuccess'),
+          'message' => $GLOBALS['LANG']->getLL('aclDeleted')
+        ];
         // Return result
-        $response->getBody()->write(true);
+        $response->getBody()->write(json_encode($body));
         return $response;
         
     }
     
-    protected function errorResponse(ResponseInterface $response,$reason,$status=500) {
+    protected function checkModifyAccess($table,$id, DataHandler $tcemainObj) {
+        // Check modify access
+        $modifyAccessList = $tcemainObj->checkModifyAccessList($table);
+        // Check basic permissions and circumstances:
+        if (!isset($GLOBALS['TCA'][$table]) || $tcemainObj->tableReadOnly($table) || !is_array($tcemainObj->cmdmap[$table]) || !$modifyAccessList) {
+            throw new \RuntimeException($GLOBALS['LANG']->getLL('noPermissionToModifyAcl'));
+            return;
+        }
+
+        // Check table / id
+        if (!$GLOBALS['TCA'][$table] || !$id) {
+           throw new \RuntimeException(sprintf($GLOBALS['LANG']->getLL('noEditAccessToAclRecord'),$id,$table));
+           return;
+        }
+        
+         // Check edit access
+        $hasEditAccess = $tcemainObj->BE_USER->recordEditAccessInternals($table, $id, false, false, true);
+        if (!$hasEditAccess) {
+            throw new \RuntimeException(sprintf($GLOBALS['LANG']->getLL('noEditAccessToAclRecord'),$id,$table));
+            return;
+        }
+    }
+  
+     protected function errorResponse(ResponseInterface $response,$reason,$status=500) {
         $response = $response->withStatus($status,$reason);
         return $response;
     }
-    
-   
 }

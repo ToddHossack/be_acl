@@ -1,10 +1,10 @@
-<span data-toggle="tooltip" data-placement="top" title="<f:translate key='LLL:EXT:be_acl/res/locallang_perm.xml:recursiveAclPage' />{acl.pid}">
+<span>
 	<f:if condition="{username}">
 		<f:then>
 			<f:comment>
 				A user name can be resolved
 			</f:comment>
-			{username -> f:format.crop(maxCharacters:20)} <f:if condition="{appliedAclPid}"><span class="fa fa-info-circle" data-toggle="tooltip" data-placement="top" title="<f:translate key='LLL:EXT:be_acl/res/locallang_perm.xml:recursiveAclPage' />{appliedAclPid}"></span></f:if>
+			{username -> f:format.crop(maxCharacters:20)}
 		</f:then>
 		<f:else>
 			<f:comment>

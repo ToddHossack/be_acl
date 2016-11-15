@@ -20,7 +20,15 @@
 		<label index="aclObjSelUpdate">Update!</label>
 		<label index="recursiveAclPage">ACL pid=</label>
 		<label index="noPageAcls">No ACLs assigned to this page</label>
-		<label index="aclsDisplayed">displayed</label>
+		<label index="acls">ACL(s)</label>
+		<label index="aclsInherited">inherited</label>
+		<label index="aclSuccess">Success</label>
+		<label index="aclError">Error</label>
+		<label index="aclDeleted">ACL deleted</label>
+		<label index="noAclId">No ACL id given</label>
+		<label index="noPermissionToModifyAcl">Attempt to modify ACL table without permission</label>
+		<label index="invalidAclTableOrId">Record "%d" or table "%s" is invalid</label>
+		<label index="noEditAccessToAclRecord">Attempt to modify record "%d" on table "%s" without permission</label>
     </languageKey>
     <languageKey index="dk" type="array">
 		<label index="recursiveAcl">Rekursiv</label>
