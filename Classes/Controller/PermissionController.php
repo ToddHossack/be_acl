@@ -230,7 +230,7 @@ class PermissionController extends \TYPO3\CMS\Beuser\Controller\PermissionContro
     protected function aclObjectQuery($type)
     {
         return $GLOBALS['TYPO3_DB']->exec_SELECTquery(
-            'uid, pid, object_id, type, recursive',
+            'uid, pid, object_id, type, `recursive`',
             'tx_beacl_acl',
             "tx_beacl_acl.type=$type"
         );
@@ -322,9 +322,9 @@ class PermissionController extends \TYPO3\CMS\Beuser\Controller\PermissionContro
 
         // Iterate rootline, looking for recursive ACLs that may apply to the current page
         foreach ($rootLine as $level => $values) {
-            $recursive = ' AND recursive=1';
+            $recursive = ' AND `recursive`=1';
 
-            $res = $GLOBALS['TYPO3_DB']->exec_SELECTquery('uid,pid, type, object_id, permissions, recursive',
+            $res = $GLOBALS['TYPO3_DB']->exec_SELECTquery('uid,pid, type, object_id, permissions, `recursive`',
                 'tx_beacl_acl', 'pid=' . intval($values['uid']) . $recursive);
 
             while ($result = $GLOBALS['TYPO3_DB']->sql_fetch_assoc($res)) {
@@ -390,7 +390,7 @@ class PermissionController extends \TYPO3\CMS\Beuser\Controller\PermissionContro
     protected function traversePageTree_acl($parentACLs, $pageId)
     {
         // Fetch ACLs aasigned to given page
-        $res = $GLOBALS['TYPO3_DB']->exec_SELECTquery('uid,pid, type, object_id, permissions, recursive',
+        $res = $GLOBALS['TYPO3_DB']->exec_SELECTquery('uid,pid, type, object_id, permissions, `recursive`',
             'tx_beacl_acl', 'pid=' . intval($pageId));
         $hasNoRecursive = array();
         $this->aclList[$pageId] = $parentACLs;

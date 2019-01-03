@@ -87,12 +87,12 @@ class UserAuthGroup
         $groupIdsAlreadyUsed = Array();
         foreach ($rootLine as $values) {
             if ($i != 0) {
-                $recursive = ' AND recursive=1';
+                $recursive = ' AND `recursive`=1';
             } else {
                 $recursive = '';
             }
             $res = $this->db->exec_SELECTquery('*', 'tx_beacl_acl', 'pid=' . intval($values['uid']) . $recursive, '',
-                'recursive ASC');
+                '`recursive` ASC');
 
             while ($result = $this->db->sql_fetch_assoc($res)) {
                 if ($result['type'] == 0
@@ -213,7 +213,7 @@ class UserAuthGroup
         $whereDeny = ') AND (permissions & ' . $perms . ' = 0)';
 
         $res = $this->db->exec_SELECTquery(
-            'pid, recursive',
+            'pid, `recursive`',
             'tx_beacl_acl',
             $where . $whereAllow
         );
@@ -226,7 +226,7 @@ class UserAuthGroup
 
             // get all "deny" acls if there are allow ACLs
             $res = $this->db->exec_SELECTquery(
-                'pid, recursive',
+                'pid, `recursive`',
                 'tx_beacl_acl',
                 $where . $whereDeny
             );
